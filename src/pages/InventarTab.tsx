@@ -9,6 +9,7 @@ import {
 } from '../components/UI'
 
 // ── AddArtikelSheet ──────────────────────────────────────────────────────────
+
 function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void; edit?: Artikel | null }) {
   const { lieKategorien, lieRaeume, lieLagerplaetze, activeLieId, activeUser, createArtikel, updateArtikel } = useApp()
   const isEdit = !!edit
@@ -21,8 +22,12 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
   const [bem, setBem] = useState(edit?.bemerkung ?? '')
   const [hints, setHints] = useState<string[]>(edit?.hinweise ?? [])
   const [emoji, setEmoji] = useState(edit?.emoji ?? '📦')
-  const [photo, setPhoto] = useState(isEdit)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [photoTaken, setPhotoTaken] = useState(isEdit)
   const [saving, setSaving] = useState(false)
+  const [listening, setListening] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const recognitionRef = React.useRef<SpeechRecognition | null>(null)
 
   const STEPS = isEdit
     ? ['Name', 'Kategorie', 'Bemerkung', 'Hinweise', 'Lagerort']
@@ -34,14 +39,82 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
 
   const EMOJIS = ['📦','🔨','🪛','⚙️','🔌','🌿','⛑️','🔧','🪚','🧰','🔩','💡','🗂️','📏','🪣']
 
+  // ── iOS-kompatible Kamera: native file input ──────────────────────────────
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    setPhotoUrl(url)
+    setPhotoTaken(true)
+  }
+
+  const triggerCamera = () => {
+    // Programmatic click on hidden file input — iOS öffnet direkt die Kamera
+    fileInputRef.current?.click()
+  }
+
+  // ── iOS-kompatible Spracheingabe: webkitSpeechRecognition ────────────────
+  const startListening = () => {
+    // Must be called directly from user click event for iOS Safari
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) {
+      toast('Spracheingabe wird auf diesem Gerät nicht unterstützt', 'err')
+      return
+    }
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+      recognitionRef.current = null
+      setListening(false)
+      return
+    }
+    const recognition = new SR()
+    recognition.lang = 'de-CH'        // Schweizerdeutsch / Deutsch
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    recognition.continuous = false
+
+    recognition.onstart = () => setListening(true)
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript
+      setName(prev => prev ? prev + ' ' + transcript : transcript)
+      setListening(false)
+      recognitionRef.current = null
+    }
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      const msg = event.error === 'not-allowed'
+        ? 'Mikrofon-Zugriff verweigert. Bitte in den iPhone-Einstellungen erlauben.'
+        : event.error === 'no-speech'
+        ? 'Kein Ton erkannt. Bitte nochmals versuchen.'
+        : 'Spracheingabe fehlgeschlagen.'
+      toast(msg, 'err')
+      setListening(false)
+      recognitionRef.current = null
+    }
+
+    recognition.onend = () => {
+      setListening(false)
+      recognitionRef.current = null
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
+  }
+
   const canNext = () => {
-    if (stepName === 'Foto') return photo
+    if (stepName === 'Foto') return photoTaken
     if (stepName === 'Name') return name.trim().length > 0
     if (stepName === 'Lagerort') return !!raumId && !!spotId
     return true
   }
 
-  const reset = () => { setStep(1); setName(''); setKat(''); setRaumId(''); setSpotId(''); setBem(''); setHints([]); setEmoji('📦'); setPhoto(false) }
+  const reset = () => {
+    setStep(1); setName(''); setKat(''); setRaumId(''); setSpotId('')
+    setBem(''); setHints([]); setEmoji('📦'); setPhotoTaken(false)
+    setPhotoUrl(null); setListening(false)
+    if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null }
+  }
 
   const handleSave = useCallback(async () => {
     if (!name.trim() || !raumId || !spotId) { toast('Bitte alle Pflichtfelder ausfüllen', 'err'); return }
@@ -51,7 +124,8 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
       name: name.trim(), kategorie: kat, raum_id: raumId,
       lagerplatz_id: spotId, lagerplatz_code: spot?.code ?? '',
       lagerplatz_bezeichnung: spot?.bezeichnung ?? '',
-      bemerkung: bem, hinweise: hints, emoji, foto_url: null,
+      bemerkung: bem, hinweise: hints, emoji,
+      foto_url: photoUrl ?? null,
       liegenschaft_id: activeLieId ?? '', erfasst_von: activeUser?.name ?? '',
     }
     if (isEdit && edit) {
@@ -62,7 +136,7 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
       toast('Artikel gespeichert')
     }
     setSaving(false); onClose(); if (!isEdit) reset()
-  }, [name, kat, raumId, spotId, bem, hints, emoji, activeLieId, activeUser, edit, isEdit, lieLagerplaetze, createArtikel, updateArtikel, onClose])
+  }, [name, kat, raumId, spotId, bem, hints, emoji, photoUrl, activeLieId, activeUser, edit, isEdit, lieLagerplaetze, createArtikel, updateArtikel, onClose])
 
   const handleNext = () => { if (step < total) setStep(s => s + 1); else handleSave() }
 
@@ -70,6 +144,17 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
 
   return (
     <Sheet open={open} onClose={() => { onClose(); if (!isEdit) reset() }} title={isEdit ? 'Artikel bearbeiten' : 'Artikel erfassen'} tall>
+      {/* Versteckter iOS Kamera-Input — muss im DOM sein */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handlePhotoCapture}
+        style={{ display: 'none' }}
+        aria-hidden="true"
+      />
+
       {/* Progress dots */}
       {!isEdit && (
         <div className="flex justify-center gap-2 py-3 px-5 border-b border-surface-700">
@@ -80,27 +165,93 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
       )}
 
       <div className="p-5 flex flex-col gap-2">
-        {/* FOTO */}
+        {/* FOTO — iOS native camera via file input */}
         {stepName === 'Foto' && (
           <>
-            <button type="button" onClick={() => setPhoto(true)}
-              className={`w-full h-48 rounded-3xl flex flex-col items-center justify-center gap-3 border-2 transition-all ${photo ? 'border-green-600 bg-surface-900' : 'border-dashed border-surface-600 bg-surface-900'}`}>
-              {photo ? <><span className="text-6xl">{emoji}</span><p className="text-green-400 text-sm font-semibold">Foto aufgenommen ✓</p></> : <><span className="text-5xl opacity-20">📷</span><p className="text-surface-500 text-sm">Tippen zum Fotografieren</p></>}
+            {/* Foto-Vorschau oder Aufnahme-Button */}
+            <button
+              type="button"
+              onClick={triggerCamera}
+              className={`w-full h-48 rounded-3xl flex flex-col items-center justify-center gap-3 border-2 transition-all overflow-hidden relative ${
+                photoTaken ? 'border-green-600' : 'border-dashed border-surface-600 bg-surface-900'
+              }`}
+            >
+              {photoTaken && photoUrl ? (
+                // Echtes Foto als Vorschau
+                <img src={photoUrl} alt="Aufgenommenes Foto" className="w-full h-full object-cover" />
+              ) : photoTaken ? (
+                // Emoji-Platzhalter wenn kein URL (edit mode)
+                <><span className="text-6xl">{emoji}</span><p className="text-green-400 text-sm font-semibold">Foto aufgenommen ✓</p></>
+              ) : (
+                // Noch kein Foto
+                <><span className="text-5xl opacity-20">📷</span><p className="text-surface-500 text-sm">Tippen zum Fotografieren</p><p className="text-surface-600 text-xs mt-1">Öffnet die iPhone-Kamera</p></>
+              )}
+              {photoTaken && (
+                <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                  Nochmals tippen zum Ändern
+                </div>
+              )}
             </button>
-            {photo && (
-              <div className="mt-2">
-                <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-2">Symbol</p>
-                <div className="flex flex-wrap gap-2">{EMOJIS.map(e => <button key={e} type="button" onClick={() => setEmoji(e)} className={`w-11 h-11 rounded-2xl text-xl flex items-center justify-center border transition-all ${emoji===e ? 'border-brand-500 bg-brand-900/40' : 'border-surface-700 bg-surface-900'}`}>{e}</button>)}</div>
+
+            {/* Symbol-Auswahl */}
+            <div className="mt-2">
+              <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-2">
+                Symbol für Inventarliste
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {EMOJIS.map(e => (
+                  <button key={e} type="button" onClick={() => setEmoji(e)}
+                    className={`w-11 h-11 rounded-2xl text-xl flex items-center justify-center border transition-all ${
+                      emoji===e ? 'border-brand-500 bg-brand-900/40' : 'border-surface-700 bg-surface-900'
+                    }`}>
+                    {e}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
           </>
         )}
 
-        {/* NAME */}
+        {/* NAME — mit iOS-kompatibler Spracheingabe */}
         {stepName === 'Name' && (
           <>
-            <Input label="Bezeichnung" placeholder="z. B. Hammer" value={name} onChange={e => setName(e.target.value)} />
-            <p className="text-surface-600 text-xs">Tipp: Mikrofon-Taste auf der iPhone-Tastatur für Spracheingabe.</p>
+            <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-1.5">
+              Bezeichnung
+            </p>
+            <div className="flex gap-2 items-center mb-1">
+              <input
+                type="text"
+                placeholder="z. B. Hammer"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                autoFocus
+                className="flex-1 bg-surface-900 border border-surface-700 text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-brand-500 placeholder:text-surface-600"
+              />
+              {/* Mikrofon-Button: startet direkt im onClick — iOS-Pflicht */}
+              <button
+                type="button"
+                onClick={startListening}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 border transition-all ${
+                  listening
+                    ? 'bg-red-600 border-red-500 animate-pulse'
+                    : 'bg-surface-800 border-surface-700'
+                }`}
+                title={listening ? 'Aufnahme stoppen' : 'Spracheingabe starten'}
+              >
+                <Mic size={20} className={listening ? 'text-white' : 'text-brand-400'} />
+              </button>
+            </div>
+            {listening && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-900/30 border border-red-800/50">
+                <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse flex-shrink-0" />
+                <p className="text-red-300 text-xs">Sprich jetzt auf Deutsch… Tippe Mikrofon zum Stoppen.</p>
+              </div>
+            )}
+            {!listening && (
+              <p className="text-surface-600 text-xs px-1">
+                Mikrofon-Button tippen und dann sprechen — oder direkt tippen.
+              </p>
+            )}
           </>
         )}
 
