@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { Plus, ScanLine, ChevronRight, ZoomIn, Pencil, Trash2, X, Mic } from 'lucide-react'
 import { useApp } from '../lib/AppContext'
-import {
 import type { Artikel } from '../types'
+import {
   Page, Sheet, Btn, Input, Textarea, Select, SearchBar,
   SL, Card, CardRow, HintIcons, HintBadges, HintChips,
   Confirm, Spinner, Empty, toast, Avatar,

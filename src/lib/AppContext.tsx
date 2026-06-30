@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabase'
-import type {
 import { DEFAULT_PERMS } from '../types'
+import type {
   Liegenschaft, Benutzer, BenutzerLie, Artikel,
   Raum, Lagerplatz, Kategorie, PermKey,
 } from '../types'
