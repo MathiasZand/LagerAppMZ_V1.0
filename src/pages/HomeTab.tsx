@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { CameraPlus, ScanLine, Cpu, ChevronRight, X } from 'lucide-react'
+import { Camera, Scan, Cpu, ChevronRight, X } from 'lucide-react'
 import { useApp } from '../lib/AppContext'
 import { Avatar, HintIcons, Spinner } from '../components/UI'
 import type { Tab } from '../components/TabBar'
@@ -70,7 +70,7 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
           <button type="button" onClick={onAdd}
             className="flex items-center gap-4 p-4 rounded-3xl bg-surface-800 border border-surface-700 active:scale-[0.98] transition-transform text-left">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(2,132,199,0.15)' }}>
-              <CameraPlus size={24} className="text-brand-400" />
+              <Camera size={24} className="text-brand-400" />
             </div>
             <div className="flex-1">
               <p className="font-bold text-white text-[15px]">Neuen Artikel erfassen</p>
@@ -83,7 +83,7 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
           <button type="button" onClick={() => onNav('inventar')}
             className="flex items-center gap-4 p-4 rounded-3xl bg-brand-700 active:scale-[0.98] transition-transform text-left">
             <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0">
-              <ScanLine size={24} className="text-white" />
+              <Scan size={24} className="text-white" />
             </div>
             <div className="flex-1">
               <p className="font-bold text-white text-[15px]">Lagercode scannen</p>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { Plus, ScanLine, ChevronRight, ZoomIn, Pencil, Trash2, X, Mic } from 'lucide-react'
+import { Plus, Scan, ChevronRight, ZoomIn, Pencil, Trash2, X, Mic } from 'lucide-react'
 import { useApp } from '../lib/AppContext'
 import type { Artikel } from '../types'
 import {
@@ -211,7 +211,7 @@ function ScanSheet({ open, onClose, onDetail }: { open: boolean; onClose: () => 
             <span className="text-xs text-surface-600 self-center">Demo:</span>
             {demos.map(c => <button key={c} type="button" onClick={() => setCode(c)}
               className="text-xs font-bold px-3 py-1.5 rounded-full bg-brand-900/50 text-brand-300 border border-brand-800/70 flex items-center gap-1">
-              <ScanLine size={11} /> {c}</button>)}
+              <Scan size={11} /> {c}</button>)}
           </div>
         )}
         {code && results.length === 0 && <p className="text-center text-surface-500 text-sm py-6">Kein Fach für Code „{code.toUpperCase()}" gefunden.</p>}
@@ -354,7 +354,7 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
         <div className="flex items-center gap-2 px-4 py-3">
           <h1 className="text-xl font-bold text-white flex-1">Inventar</h1>
           <button type="button" onClick={() => setShowScan(true)} className="w-9 h-9 rounded-2xl bg-surface-800 border border-surface-700 flex items-center justify-center">
-            <ScanLine size={17} className="text-brand-400" />
+            <Scan size={17} className="text-brand-400" />
           </button>
           {can('inv_create') && (
             <button type="button" onClick={() => setShowLocalAdd(true)} className="w-9 h-9 rounded-2xl bg-brand-600 flex items-center justify-center">
