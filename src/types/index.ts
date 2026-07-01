@@ -67,7 +67,6 @@ export interface Artikel {
 }
 
 // ─── Hints ───────────────────────────────────────────────────────────────────
-
 export const HINTS = [
   { id: 'fire',    label: 'Brennbar',   icon: '🔥', bg: '#FAECE7', border: '#F5C4B3', text: '#7B2D00' },
   { id: 'cold',    label: 'Kühlen',     icon: '❄️', bg: '#EEF6FF', border: '#BFDBFE', text: '#1E40AF' },
@@ -81,7 +80,6 @@ export type HintId = typeof HINTS[number]['id']
 export const getHint = (id: string) => HINTS.find(h => h.id === id)
 
 // ─── Permissions ──────────────────────────────────────────────────────────────
-
 export type PermKey =
   | 'inv_view' | 'inv_create' | 'inv_edit' | 'inv_delete' | 'inv_export'
   | 'cat_view' | 'cat_create' | 'cat_edit' | 'cat_delete'
@@ -129,7 +127,6 @@ export const DEFAULT_PERMS: Record<string, Record<PermKey, boolean>> = {
 }
 
 // ─── Style constants ──────────────────────────────────────────────────────────
-
 export const LIE_EMOJIS  = ['🏢','🏡','🏗️','🏭','🏪','🏬','🏠','🔑','📦','🌳']
 export const ROOM_EMOJIS = ['🔧','🏠','🚗','🌿','📦','⚡','🧰','🗄️','🏭','🛠️']
 
@@ -152,5 +149,3 @@ export const CAT_COLORS = [
   { color: '#d97706', bg: 'rgba(217,119,6,0.15)'   },
   { color: '#db2777', bg: 'rgba(219,39,119,0.15)'  },
 ]
-
-export const AV_COLORS = ['#0284c7','#059669','#7c3aed','#d97706','#dc2626','#0891b2','#65a30d','#db2777']

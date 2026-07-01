@@ -1,105 +1,82 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { Plus, Scan, ChevronRight, ZoomIn, Pencil, Trash2, X, Mic } from 'lucide-react'
+import { Plus, ChevronRight, ZoomIn, Pencil, Trash2, Mic } from 'lucide-react'
 import { useApp } from '../lib/AppContext'
 import type { Artikel } from '../types'
 import {
-  Page, Sheet, Btn, Input, Textarea, Select, SearchBar,
+  Page, Sheet, Btn, Input, Textarea, SearchBar,
   SL, Card, CardRow, HintIcons, HintBadges, HintChips,
-  Confirm, Spinner, Empty, toast, Avatar,
+  Confirm, Spinner, Empty, toast,
 } from '../components/UI'
 
 // ── AddArtikelSheet ──────────────────────────────────────────────────────────
-
 function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void; edit?: Artikel | null }) {
   const { lieKategorien, lieRaeume, lieLagerplaetze, activeLieId, activeUser, createArtikel, updateArtikel } = useApp()
   const isEdit = !!edit
 
-  const [step, setStep] = useState(1)
-  const [name, setName] = useState(edit?.name ?? '')
-  const [kat, setKat] = useState(edit?.kategorie ?? '')
-  const [raumId, setRaumId] = useState(edit?.raum_id ?? '')
-  const [spotId, setSpotId] = useState(edit?.lagerplatz_id ?? '')
-  const [bem, setBem] = useState(edit?.bemerkung ?? '')
-  const [hints, setHints] = useState<string[]>(edit?.hinweise ?? [])
-  const [emoji, setEmoji] = useState(edit?.emoji ?? '📦')
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [step, setStep]           = useState(1)
+  const [name, setName]           = useState(edit?.name ?? '')
+  const [kat, setKat]             = useState(edit?.kategorie ?? '')
+  const [raumId, setRaumId]       = useState(edit?.raum_id ?? '')
+  const [spotId, setSpotId]       = useState(edit?.lagerplatz_id ?? '')
+  const [bem, setBem]             = useState(edit?.bemerkung ?? '')
+  const [hints, setHints]         = useState<string[]>(edit?.hinweise ?? [])
+  const [emoji, setEmoji]         = useState(edit?.emoji ?? '📦')
+  const [photoUrl, setPhotoUrl]   = useState<string | null>(null)
   const [photoTaken, setPhotoTaken] = useState(isEdit)
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]       = useState(false)
   const [listening, setListening] = useState(false)
-  const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const fileInputRef  = React.useRef<HTMLInputElement>(null)
   const recognitionRef = React.useRef<SpeechRecognition | null>(null)
 
   const STEPS = isEdit
     ? ['Name', 'Kategorie', 'Bemerkung', 'Hinweise', 'Lagerort']
     : ['Foto', 'Name', 'Kategorie', 'Bemerkung', 'Hinweise', 'Lagerort']
-  const total = STEPS.length
+  const total    = STEPS.length
   const stepName = STEPS[step - 1]
-
   const raumSpots = lieLagerplaetze.filter(s => s.raum_id === raumId)
-
   const EMOJIS = ['📦','🔨','🪛','⚙️','🔌','🌿','⛑️','🔧','🪚','🧰','🔩','💡','🗂️','📏','🪣']
 
-  // ── iOS-kompatible Kamera: native file input ──────────────────────────────
+  // ── iOS Kamera ───────────────────────────────────────────────────────────
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const url = URL.createObjectURL(file)
-    setPhotoUrl(url)
+    setPhotoUrl(URL.createObjectURL(file))
     setPhotoTaken(true)
   }
 
-  const triggerCamera = () => {
-    // Programmatic click on hidden file input — iOS öffnet direkt die Kamera
-    fileInputRef.current?.click()
-  }
-
-  // ── iOS-kompatible Spracheingabe: webkitSpeechRecognition ────────────────
+  // ── iOS Spracheingabe ─────────────────────────────────────────────────────
   const startListening = () => {
-    // Must be called directly from user click event for iOS Safari
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SR) {
-      toast('Spracheingabe wird auf diesem Gerät nicht unterstützt', 'err')
-      return
-    }
+    if (!SR) { toast('Spracheingabe nicht verfügbar auf diesem Gerät', 'err'); return }
     if (recognitionRef.current) {
       recognitionRef.current.stop()
       recognitionRef.current = null
       setListening(false)
       return
     }
-    const recognition = new SR()
-    recognition.lang = 'de-CH'        // Schweizerdeutsch / Deutsch
-    recognition.interimResults = false
-    recognition.maxAlternatives = 1
-    recognition.continuous = false
-
-    recognition.onstart = () => setListening(true)
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript
-      setName(prev => prev ? prev + ' ' + transcript : transcript)
+    const rec = new SR()
+    rec.lang = 'de-CH'
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+    rec.continuous = false
+    rec.onstart  = () => setListening(true)
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      const t = e.results[0][0].transcript
+      setName(prev => prev ? prev + ' ' + t : t)
       setListening(false)
       recognitionRef.current = null
     }
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      const msg = event.error === 'not-allowed'
-        ? 'Mikrofon-Zugriff verweigert. Bitte in den iPhone-Einstellungen erlauben.'
-        : event.error === 'no-speech'
-        ? 'Kein Ton erkannt. Bitte nochmals versuchen.'
+    rec.onerror = (e: SpeechRecognitionErrorEvent) => {
+      const msg = e.error === 'not-allowed' ? 'Mikrofon-Zugriff verweigert. Bitte in Einstellungen erlauben.'
+        : e.error === 'no-speech' ? 'Kein Ton erkannt. Nochmals versuchen.'
         : 'Spracheingabe fehlgeschlagen.'
       toast(msg, 'err')
       setListening(false)
       recognitionRef.current = null
     }
-
-    recognition.onend = () => {
-      setListening(false)
-      recognitionRef.current = null
-    }
-
-    recognitionRef.current = recognition
-    recognition.start()
+    rec.onend = () => { setListening(false); recognitionRef.current = null }
+    recognitionRef.current = rec
+    rec.start()
   }
 
   const canNext = () => {
@@ -111,8 +88,8 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
 
   const reset = () => {
     setStep(1); setName(''); setKat(''); setRaumId(''); setSpotId('')
-    setBem(''); setHints([]); setEmoji('📦'); setPhotoTaken(false)
-    setPhotoUrl(null); setListening(false)
+    setBem(''); setHints([]); setEmoji('📦'); setPhotoTaken(false); setPhotoUrl(null)
+    setListening(false)
     if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null }
   }
 
@@ -126,14 +103,15 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
       lagerplatz_bezeichnung: spot?.bezeichnung ?? '',
       bemerkung: bem, hinweise: hints, emoji,
       foto_url: photoUrl ?? null,
-      liegenschaft_id: activeLieId ?? '', erfasst_von: activeUser?.name ?? '',
+      liegenschaft_id: activeLieId ?? '',
+      erfasst_von: activeUser?.name ?? '',
     }
     if (isEdit && edit) {
       await updateArtikel(edit.id, payload)
       toast('Artikel aktualisiert')
     } else {
       await createArtikel(payload)
-      toast('Artikel gespeichert')
+      toast('Artikel gespeichert ✓')
     }
     setSaving(false); onClose(); if (!isEdit) reset()
   }, [name, kat, raumId, spotId, bem, hints, emoji, photoUrl, activeLieId, activeUser, edit, isEdit, lieLagerplaetze, createArtikel, updateArtikel, onClose])
@@ -144,18 +122,11 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
 
   return (
     <Sheet open={open} onClose={() => { onClose(); if (!isEdit) reset() }} title={isEdit ? 'Artikel bearbeiten' : 'Artikel erfassen'} tall>
-      {/* Versteckter iOS Kamera-Input — muss im DOM sein */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handlePhotoCapture}
-        style={{ display: 'none' }}
-        aria-hidden="true"
-      />
+      {/* Versteckter iOS-Kamera-Input */}
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+        onChange={handlePhotoCapture} style={{ display: 'none' }} aria-hidden="true" />
 
-      {/* Progress dots */}
+      {/* Fortschritt-Punkte */}
       {!isEdit && (
         <div className="flex justify-center gap-2 py-3 px-5 border-b border-surface-700">
           {STEPS.map((_, i) => (
@@ -165,45 +136,27 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
       )}
 
       <div className="p-5 flex flex-col gap-2">
-        {/* FOTO — iOS native camera via file input */}
+        {/* FOTO */}
         {stepName === 'Foto' && (
           <>
-            {/* Foto-Vorschau oder Aufnahme-Button */}
-            <button
-              type="button"
-              onClick={triggerCamera}
-              className={`w-full h-48 rounded-3xl flex flex-col items-center justify-center gap-3 border-2 transition-all overflow-hidden relative ${
-                photoTaken ? 'border-green-600' : 'border-dashed border-surface-600 bg-surface-900'
-              }`}
-            >
-              {photoTaken && photoUrl ? (
-                // Echtes Foto als Vorschau
-                <img src={photoUrl} alt="Aufgenommenes Foto" className="w-full h-full object-cover" />
-              ) : photoTaken ? (
-                // Emoji-Platzhalter wenn kein URL (edit mode)
-                <><span className="text-6xl">{emoji}</span><p className="text-green-400 text-sm font-semibold">Foto aufgenommen ✓</p></>
-              ) : (
-                // Noch kein Foto
-                <><span className="text-5xl opacity-20">📷</span><p className="text-surface-500 text-sm">Tippen zum Fotografieren</p><p className="text-surface-600 text-xs mt-1">Öffnet die iPhone-Kamera</p></>
-              )}
+            <button type="button" onClick={() => fileInputRef.current?.click()}
+              className={`w-full h-48 rounded-3xl flex flex-col items-center justify-center gap-3 border-2 transition-all overflow-hidden relative ${photoTaken ? 'border-green-600' : 'border-dashed border-surface-600 bg-surface-900'}`}>
+              {photoTaken && photoUrl
+                ? <img src={photoUrl} alt="Aufnahme" className="w-full h-full object-cover" />
+                : photoTaken
+                ? <><span className="text-6xl">{emoji}</span><p className="text-green-400 text-sm font-semibold">Foto aufgenommen ✓</p></>
+                : <><span className="text-5xl opacity-20">📷</span><p className="text-surface-500 text-sm">Tippen zum Fotografieren</p><p className="text-surface-600 text-xs mt-1">Öffnet die iPhone-Kamera</p></>
+              }
               {photoTaken && (
-                <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-                  Nochmals tippen zum Ändern
-                </div>
+                <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">Nochmals tippen</div>
               )}
             </button>
-
-            {/* Symbol-Auswahl */}
             <div className="mt-2">
-              <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-2">
-                Symbol für Inventarliste
-              </p>
+              <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-2">Symbol</p>
               <div className="flex flex-wrap gap-2">
                 {EMOJIS.map(e => (
                   <button key={e} type="button" onClick={() => setEmoji(e)}
-                    className={`w-11 h-11 rounded-2xl text-xl flex items-center justify-center border transition-all ${
-                      emoji===e ? 'border-brand-500 bg-brand-900/40' : 'border-surface-700 bg-surface-900'
-                    }`}>
+                    className={`w-11 h-11 rounded-2xl text-xl flex items-center justify-center border transition-all ${emoji===e ? 'border-brand-500 bg-brand-900/40' : 'border-surface-700 bg-surface-900'}`}>
                     {e}
                   </button>
                 ))}
@@ -212,45 +165,28 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
           </>
         )}
 
-        {/* NAME — mit iOS-kompatibler Spracheingabe */}
+        {/* NAME + Mikrofon */}
         {stepName === 'Name' && (
           <>
-            <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-1.5">
-              Bezeichnung
-            </p>
+            <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-1.5">Bezeichnung</p>
             <div className="flex gap-2 items-center mb-1">
-              <input
-                type="text"
-                placeholder="z. B. Hammer"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                autoFocus
-                className="flex-1 bg-surface-900 border border-surface-700 text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-brand-500 placeholder:text-surface-600"
-              />
-              {/* Mikrofon-Button: startet direkt im onClick — iOS-Pflicht */}
-              <button
-                type="button"
-                onClick={startListening}
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 border transition-all ${
-                  listening
-                    ? 'bg-red-600 border-red-500 animate-pulse'
-                    : 'bg-surface-800 border-surface-700'
-                }`}
-                title={listening ? 'Aufnahme stoppen' : 'Spracheingabe starten'}
-              >
+              <input type="text" placeholder="z. B. Hammer" value={name}
+                onChange={e => setName(e.target.value)} autoFocus
+                className="flex-1 bg-surface-900 border border-surface-700 text-white rounded-2xl px-4 py-3 focus:outline-none focus:border-brand-500 placeholder:text-surface-600" />
+              {/* Mikrofon — muss direkt im onClick starten (iOS-Pflicht) */}
+              <button type="button" onClick={startListening}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 border transition-all ${listening ? 'bg-red-600 border-red-500 animate-pulse' : 'bg-surface-800 border-surface-700'}`}>
                 <Mic size={20} className={listening ? 'text-white' : 'text-brand-400'} />
               </button>
             </div>
             {listening && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-900/30 border border-red-800/50">
                 <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse flex-shrink-0" />
-                <p className="text-red-300 text-xs">Sprich jetzt auf Deutsch… Tippe Mikrofon zum Stoppen.</p>
+                <p className="text-red-300 text-xs">Sprich jetzt… Mikrofon erneut tippen zum Stoppen.</p>
               </div>
             )}
             {!listening && (
-              <p className="text-surface-600 text-xs px-1">
-                Mikrofon-Button tippen und dann sprechen — oder direkt tippen.
-              </p>
+              <p className="text-surface-600 text-xs px-1">Mikrofon tippen und sprechen — oder direkt eintippen.</p>
             )}
           </>
         )}
@@ -260,21 +196,30 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
           <div>
             <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-3">Kategorie</p>
             {lieKategorien.length === 0
-              ? <p className="text-surface-500 text-sm text-center py-8">Keine Kategorien — bitte zuerst in Verwaltung anlegen.</p>
-              : <div className="flex flex-col gap-2">{lieKategorien.map(k => (
-                  <button key={k.id} type="button" onClick={() => setKat(k.name)}
-                    className={`flex items-center gap-3 p-3.5 rounded-2xl border transition-all ${kat===k.name ? 'border-brand-500 bg-brand-900/30' : 'border-surface-700 bg-surface-900'}`}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: k.hintergrund, color: k.farbe }}>{k.name.slice(0,2).toUpperCase()}</div>
-                    <span className="text-white font-medium text-sm">{k.name}</span>
-                    {kat===k.name && <div className="ml-auto w-5 h-5 rounded-full bg-brand-500 flex items-center justify-center text-white text-[10px]">✓</div>}
-                  </button>
-                ))}</div>
+              ? <div className="text-center py-8">
+                  <p className="text-surface-500 text-sm">Keine Kategorien vorhanden.</p>
+                  <p className="text-surface-600 text-xs mt-1">Bitte zuerst unter Verwaltung anlegen.</p>
+                </div>
+              : <div className="flex flex-col gap-2">
+                  {lieKategorien.map(k => (
+                    <button key={k.id} type="button" onClick={() => setKat(k.name)}
+                      className={`flex items-center gap-3 p-3.5 rounded-2xl border transition-all ${kat===k.name ? 'border-brand-500 bg-brand-900/30' : 'border-surface-700 bg-surface-900'}`}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
+                        style={{ background: k.hintergrund, color: k.farbe }}>{k.name.slice(0,2).toUpperCase()}</div>
+                      <span className="text-white font-medium text-sm">{k.name}</span>
+                      {kat===k.name && <div className="ml-auto w-5 h-5 rounded-full bg-brand-500 flex items-center justify-center text-white text-[10px]">✓</div>}
+                    </button>
+                  ))}
+                </div>
             }
           </div>
         )}
 
         {/* BEMERKUNG */}
-        {stepName === 'Bemerkung' && <Textarea label="Bemerkung (optional)" placeholder="z. B. Schutzbrille tragen, Ablauf 12/2026…" value={bem} onChange={e => setBem(e.target.value)} rows={4} />}
+        {stepName === 'Bemerkung' && (
+          <Textarea label="Bemerkung (optional)" placeholder="z. B. Schutzbrille tragen, Ablauf 12/2026…"
+            value={bem} onChange={e => setBem(e.target.value)} rows={4} />
+        )}
 
         {/* HINWEISE */}
         {stepName === 'Hinweise' && (
@@ -288,14 +233,20 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
         {stepName === 'Lagerort' && (
           <div>
             <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-3">Raum</p>
-            <div className="flex flex-wrap gap-2 mb-5">
-              {lieRaeume.map(r => (
-                <button key={r.id} type="button" onClick={() => { setRaumId(r.id); setSpotId('') }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-sm font-semibold transition-all ${raumId===r.id ? 'border-brand-500 bg-brand-900/40 text-brand-300' : 'border-surface-700 bg-surface-900 text-surface-300'}`}>
-                  {r.emoji} {r.name}
-                </button>
-              ))}
-            </div>
+            {lieRaeume.length === 0
+              ? <div className="text-center py-6">
+                  <p className="text-surface-500 text-sm">Keine Räume vorhanden.</p>
+                  <p className="text-surface-600 text-xs mt-1">Bitte zuerst unter Verwaltung → Lagerorte anlegen.</p>
+                </div>
+              : <div className="flex flex-wrap gap-2 mb-5">
+                  {lieRaeume.map(r => (
+                    <button key={r.id} type="button" onClick={() => { setRaumId(r.id); setSpotId('') }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-sm font-semibold transition-all ${raumId===r.id ? 'border-brand-500 bg-brand-900/40 text-brand-300' : 'border-surface-700 bg-surface-900 text-surface-300'}`}>
+                      {r.emoji} {r.name}
+                    </button>
+                  ))}
+                </div>
+            }
             {raumId && raumSpots.length > 0 && (
               <>
                 <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-3">Lagerplatz</p>
@@ -311,11 +262,14 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
                 </div>
               </>
             )}
+            {raumId && raumSpots.length === 0 && (
+              <p className="text-surface-500 text-sm text-center py-4">Keine Lagerplätze in diesem Raum.</p>
+            )}
           </div>
         )}
       </div>
 
-      {/* Nav */}
+      {/* Nav-Buttons */}
       <div className="p-5 pt-0 flex gap-3">
         {step > 1 && !isEdit && <Btn variant="secondary" className="flex-1" onClick={() => setStep(s => s-1)}>Zurück</Btn>}
         <Btn className="flex-1" onClick={handleNext} disabled={!canNext() || saving}>
@@ -326,77 +280,14 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
   )
 }
 
-// ── ScanSheet ────────────────────────────────────────────────────────────────
-function ScanSheet({ open, onClose, onDetail }: { open: boolean; onClose: () => void; onDetail: (id: string) => void }) {
-  const { lieArtikel } = useApp()
-  const [code, setCode] = useState('')
-  const results = useMemo(() => {
-    const q = code.trim().toUpperCase()
-    return q ? lieArtikel.filter(a => a.lagerplatz_code.toUpperCase() === q) : []
-  }, [code, lieArtikel])
-  const demos = [...new Set(lieArtikel.map(a => a.lagerplatz_code))].slice(0, 3)
-
-  return (
-    <Sheet open={open} onClose={onClose} title="Lagercode scannen" tall>
-      {/* Scan animation */}
-      <div className="mx-4 mt-2 h-36 rounded-3xl overflow-hidden relative flex items-center justify-center" style={{ background: '#030810' }}>
-        <div className="scan-line" />
-        {[[12,12,'tl'],[12,'auto','tr'],['auto',12,'bl'],['auto','auto','br']].map(([t,b,n]) => (
-          <div key={String(n)} className="absolute w-5 h-5 border-brand-400"
-            style={{ top: t===12?12:undefined, bottom: typeof b==='number'?b:undefined, left: n==='tl'||n==='bl'?16:undefined, right: n==='tr'||n==='br'?16:undefined,
-              borderTopWidth: n==='tl'||n==='tr'?2:0, borderBottomWidth: n==='bl'||n==='br'?2:0,
-              borderLeftWidth: n==='tl'||n==='bl'?2:0, borderRightWidth: n==='tr'||n==='br'?2:0,
-              borderTopLeftRadius: n==='tl'?4:0, borderTopRightRadius: n==='tr'?4:0,
-              borderBottomLeftRadius: n==='bl'?4:0, borderBottomRightRadius: n==='br'?4:0 }} />
-        ))}
-        <p className="absolute bottom-2.5 left-0 right-0 text-center text-surface-500 text-xs">Barcode auf Lagerfach richten</p>
-      </div>
-
-      <div className="p-4">
-        <div className="flex gap-2 mb-3">
-          <input value={code} onChange={e => setCode(e.target.value)} placeholder="Code eingeben…"
-            className="flex-1 bg-surface-900 border border-surface-700 text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-brand-500 placeholder:text-surface-600 uppercase" />
-        </div>
-        {demos.length > 0 && (
-          <div className="flex gap-2 flex-wrap mb-3">
-            <span className="text-xs text-surface-600 self-center">Demo:</span>
-            {demos.map(c => <button key={c} type="button" onClick={() => setCode(c)}
-              className="text-xs font-bold px-3 py-1.5 rounded-full bg-brand-900/50 text-brand-300 border border-brand-800/70 flex items-center gap-1">
-              <Scan size={11} /> {c}</button>)}
-          </div>
-        )}
-        {code && results.length === 0 && <p className="text-center text-surface-500 text-sm py-6">Kein Fach für Code „{code.toUpperCase()}" gefunden.</p>}
-        {results.length > 0 && (
-          <div className="bg-surface-900 rounded-2xl border border-surface-700 overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-surface-700 flex items-center gap-2">
-              <span className="text-brand-300 font-bold text-sm px-2.5 py-1 bg-brand-900/50 rounded-full border border-brand-800/70">{code.toUpperCase()}</span>
-              <span className="text-surface-400 text-xs">{results.length} Artikel</span>
-            </div>
-            {results.map((a, i) => (
-              <button key={a.id} type="button" onClick={() => { onDetail(a.id); onClose() }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left active:bg-surface-800/50 ${i>0?'border-t border-surface-800':''}`}>
-                <span className="text-2xl">{a.emoji}</span>
-                <div className="flex-1 min-w-0"><p className="text-white text-sm font-medium truncate">{a.name}</p><p className="text-surface-500 text-xs">{a.kategorie}</p></div>
-                {a.hinweise?.length > 0 && <HintIcons hints={a.hinweise} />}
-                <ChevronRight size={15} className="text-surface-600 flex-shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </Sheet>
-  )
-}
-
-// ── Detail Page ──────────────────────────────────────────────────────────────
+// ── Detail Page ───────────────────────────────────────────────────────────────
 function DetailPage({ open, onBack, id, onEdit, onDeleted }: {
-  open: boolean; onBack: () => void; id: string | null;
-  onEdit: (a: Artikel) => void; onDeleted: () => void
+  open: boolean; onBack: () => void; id: string | null; onEdit: (a: Artikel) => void; onDeleted: () => void
 }) {
   const { lieArtikel, lieRaeume, deleteArtikel } = useApp()
-  const [zoom, setZoom] = useState(false)
+  const [zoom, setZoom]           = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
-  const a = lieArtikel.find(x => x.id === id)
+  const a    = lieArtikel.find(x => x.id === id)
   const raum = lieRaeume.find(r => r.id === a?.raum_id)
 
   if (!open || !a) return null
@@ -404,16 +295,22 @@ function DetailPage({ open, onBack, id, onEdit, onDeleted }: {
   return (
     <Page open title={a.name} onBack={onBack} backLabel="Inventar"
       right={<button type="button" onClick={() => onEdit(a)} className="text-brand-400 text-sm font-semibold">Bearbeiten</button>}>
-      {/* Photo */}
-      <div onClick={() => setZoom(true)} className="relative mx-4 mt-4 h-52 bg-surface-800 rounded-3xl flex items-center justify-center border border-surface-700 cursor-pointer">
-        <span className="text-8xl">{a.emoji}</span>
+
+      <div onClick={() => setZoom(true)}
+        className="relative mx-4 mt-4 h-52 bg-surface-800 rounded-3xl flex items-center justify-center border border-surface-700 cursor-pointer">
+        {a.foto_url
+          ? <img src={a.foto_url} alt={a.name} className="w-full h-full object-cover rounded-3xl" />
+          : <span className="text-8xl">{a.emoji}</span>}
         <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/50 text-white text-xs px-2.5 py-1.5 rounded-full">
           <ZoomIn size={12} /> Zoomen
         </div>
       </div>
+
       {zoom && (
         <div className="fixed inset-0 z-50 bg-black/96 flex flex-col items-center justify-center" onClick={() => setZoom(false)}>
-          <span className="text-[120px] select-none">{a.emoji}</span>
+          {a.foto_url
+            ? <img src={a.foto_url} alt={a.name} className="max-w-full max-h-full object-contain" />
+            : <span className="text-[120px] select-none">{a.emoji}</span>}
           <p className="text-white/30 text-xs mt-6">Tippen zum Schliessen</p>
         </div>
       )}
@@ -435,11 +332,11 @@ function DetailPage({ open, onBack, id, onEdit, onDeleted }: {
 
       <div className="mx-4 mt-4 bg-surface-800 rounded-3xl border border-surface-700 overflow-hidden">
         {[
-          { l: 'Raum', v: raum ? `${raum.emoji} ${raum.name}` : '—' },
-          { l: 'Lagerplatz', v: `${a.lagerplatz_bezeichnung} (${a.lagerplatz_code})`, hi: true },
-          { l: 'Kategorie', v: a.kategorie || '—' },
-          { l: 'Bemerkung', v: a.bemerkung || '—', warn: !!a.bemerkung },
-          { l: 'Erfasst am', v: new Date(a.erfasst_am).toLocaleDateString('de-CH') },
+          { l: 'Raum',        v: raum ? `${raum.emoji} ${raum.name}` : '—' },
+          { l: 'Lagerplatz',  v: `${a.lagerplatz_bezeichnung} (${a.lagerplatz_code})`, hi: true },
+          { l: 'Kategorie',   v: a.kategorie || '—' },
+          { l: 'Bemerkung',   v: a.bemerkung || '—', warn: !!a.bemerkung },
+          { l: 'Erfasst am',  v: new Date(a.erfasst_am).toLocaleDateString('de-CH') },
           { l: 'Gescannt von', v: a.erfasst_von || '—' },
         ].map(({ l, v, hi, warn }, i) => (
           <div key={l} className={`flex gap-4 px-4 py-3.5 ${i>0?'border-t border-surface-700/60':''}`}>
@@ -472,16 +369,13 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
   initialDetailId?: string | null; onDetailClose?: () => void
 }) {
   const { lieArtikel, lieKategorien, can, loading } = useApp()
-  const [q, setQ] = useState('')
-  const [cat, setCat] = useState('Alle')
+  const [q, setQ]               = useState('')
+  const [cat, setCat]           = useState('Alle')
   const [detailId, setDetailId] = useState<string | null>(initialDetailId ?? null)
-
-  React.useEffect(() => {
-    if (initialDetailId) setDetailId(initialDetailId)
-  }, [initialDetailId])
   const [editItem, setEditItem] = useState<Artikel | null>(null)
-  const [showScan, setShowScan] = useState(false)
   const [showLocalAdd, setShowLocalAdd] = useState(false)
+
+  React.useEffect(() => { if (initialDetailId) setDetailId(initialDetailId) }, [initialDetailId])
 
   const filtered = useMemo(() => {
     const sq = q.toLowerCase()
@@ -500,21 +394,20 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
   if (loading) return <Spinner />
 
   return (
-    <div className="flex flex-col min-h-full" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <div className="flex flex-col min-h-full page-header">
       <div className="bg-surface-900/95 backdrop-blur border-b border-surface-800 flex-shrink-0">
         <div className="flex items-center gap-2 px-4 py-3">
           <h1 className="text-xl font-bold text-white flex-1">Inventar</h1>
-          <button type="button" onClick={() => setShowScan(true)} className="w-9 h-9 rounded-2xl bg-surface-800 border border-surface-700 flex items-center justify-center">
-            <Scan size={17} className="text-brand-400" />
-          </button>
+          {/* Nur Add-Button, kein Scan-Button */}
           {can('inv_create') && (
-            <button type="button" onClick={() => setShowLocalAdd(true)} className="w-9 h-9 rounded-2xl bg-brand-600 flex items-center justify-center">
-              <Plus size={18} className="text-white" />
+            <button type="button" onClick={() => setShowLocalAdd(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-brand-600 text-white text-sm font-semibold">
+              <Plus size={16} /> Artikel
             </button>
           )}
         </div>
         <SearchBar value={q} onChange={setQ} placeholder="Name, Kategorie oder Code…" />
-        <div className="flex gap-2 px-4 pb-3 overflow-x-auto" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+        <div className="flex gap-2 px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {['Alle', ...lieKategorien.map(k => k.name)].map(c => (
             <button key={c} type="button" onClick={() => setCat(c)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors ${cat===c ? 'bg-brand-600 text-white border-brand-600' : 'bg-surface-800 text-surface-400 border-surface-700'}`}>
@@ -524,7 +417,7 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* Stats */}
       <div className="flex gap-3 px-5 py-3 border-b border-surface-800 flex-shrink-0">
         {[
           { v: filtered.length, l: 'Artikel' },
@@ -541,7 +434,7 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
         ))}
       </div>
 
-      <div className="flex-1 scroll-area pb-28">
+      <div className="flex-1 scroll-area pb-tabbar">
         {filtered.length === 0
           ? <Empty icon="📦" title="Keine Artikel" sub={q ? 'Suchbegriff anpassen' : 'Ersten Artikel erfassen'} />
           : Object.entries(grouped).map(([grp, items]) => (
@@ -580,10 +473,8 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
         )}
       </div>
 
-      {/* Sheets */}
       <AddSheet open={addOpen || showLocalAdd} onClose={() => { onAddClose(); setShowLocalAdd(false) }} />
       <AddSheet open={!!editItem} onClose={() => setEditItem(null)} edit={editItem} />
-      <ScanSheet open={showScan} onClose={() => setShowScan(false)} onDetail={id => { setDetailId(id); setShowScan(false) }} />
       <DetailPage open={!!detailId} onBack={() => { setDetailId(null); onDetailClose?.() }} id={detailId}
         onEdit={a => { setDetailId(null); setEditItem(a) }}
         onDeleted={() => { setDetailId(null); onDetailClose?.() }} />

@@ -11,19 +11,17 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
 }) {
   const { activeLie, activeUser, lieArtikel, lieRaeume, lieKategorien, loading } = useApp()
   const [showFind, setShowFind] = useState(false)
-  const [aiState, setAiState] = useState<'idle'|'scan'|'found'|'none'>('idle')
-  const [found, setFound] = useState<typeof lieArtikel[0] | null>(null)
+  const [aiState, setAiState]   = useState<'idle'|'scan'|'found'|'none'>('idle')
+  const [found, setFound]       = useState<typeof lieArtikel[0] | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>()
 
   const simAI = (id: string) => {
-    setAiState('scan'); setFound(null)
-    clearTimeout(timer.current)
+    setAiState('scan'); setFound(null); clearTimeout(timer.current)
     timer.current = setTimeout(() => {
       const it = lieArtikel.find(a => a.id === id)
       if (it) { setFound(it); setAiState('found') } else setAiState('none')
     }, 1800)
   }
-
   const resetFind = () => { setAiState('idle'); setFound(null) }
 
   if (loading) return <Spinner />
@@ -32,8 +30,7 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
   const greet = h < 12 ? 'Guten Morgen' : h < 17 ? 'Guten Tag' : 'Guten Abend'
 
   return (
-    <div className="flex flex-col min-h-full" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-      {/* Header */}
+    <div className="flex flex-col min-h-full page-header">
       <div className="bg-surface-900/95 backdrop-blur border-b border-surface-800 px-5 pt-4 pb-4 flex-shrink-0">
         <div className="flex items-start justify-between">
           <div>
@@ -46,7 +43,7 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
         </div>
       </div>
 
-      <div className="flex-1 scroll-area pb-28">
+      <div className="flex-1 scroll-area pb-tabbar">
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 p-4 pb-2">
           {[
@@ -66,7 +63,6 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
 
         {/* Actions */}
         <div className="px-4 pt-2 flex flex-col gap-3">
-          {/* Artikel erfassen */}
           <button type="button" onClick={onAdd}
             className="flex items-center gap-4 p-4 rounded-3xl bg-surface-800 border border-surface-700 active:scale-[0.98] transition-transform text-left">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(2,132,199,0.15)' }}>
@@ -79,7 +75,6 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
             <ChevronRight size={17} className="text-surface-600" />
           </button>
 
-          {/* Lagercode */}
           <button type="button" onClick={() => onNav('inventar')}
             className="flex items-center gap-4 p-4 rounded-3xl bg-brand-700 active:scale-[0.98] transition-transform text-left">
             <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0">
@@ -92,7 +87,6 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
             <ChevronRight size={17} className="text-white/40" />
           </button>
 
-          {/* Lagerplatz ermitteln */}
           <button type="button" onClick={() => { setShowFind(true); resetFind() }}
             className="flex items-center gap-4 p-4 rounded-3xl border border-green-800/40 active:scale-[0.98] transition-transform text-left"
             style={{ background: '#050f08' }}>
@@ -133,9 +127,9 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
         )}
       </div>
 
-      {/* ── Lagerplatz ermitteln overlay ── */}
+      {/* Lagerplatz ermitteln Overlay */}
       {showFind && (
-        <div className="fixed inset-0 z-40 bg-surface-900 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="fixed inset-0 z-40 bg-surface-900 flex flex-col page-header">
           <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-surface-800">
             <h2 className="text-[17px] font-bold text-white">Lagerplatz ermitteln</h2>
             <button type="button" onClick={() => { setShowFind(false); resetFind() }}
@@ -144,12 +138,12 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
             </button>
           </div>
           <div className="flex-1 scroll-area">
-            {/* Camera view */}
             <div className="mx-4 mt-4 h-48 rounded-3xl overflow-hidden relative flex items-center justify-center" style={{ background: '#030d06' }}>
               <div className="ai-ring" style={{ width: 120, height: 120 }} />
               <div className="ai-ring" style={{ width: 80, height: 80, animationDelay: '0.6s' }} />
               <div className="w-2.5 h-2.5 rounded-full bg-green-500 absolute" style={{ animation: 'aiPulse 1.2s ease-in-out infinite' }} />
-              <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-green-400" style={{ background: 'rgba(52,199,89,0.12)', border: '0.5px solid rgba(52,199,89,0.35)' }}>
+              <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-green-400"
+                style={{ background: 'rgba(52,199,89,0.12)', border: '0.5px solid rgba(52,199,89,0.35)' }}>
                 <Cpu size={11} /> KI-Erkennung aktiv
               </div>
               <div className="absolute bottom-3 left-0 right-0 text-center">
@@ -157,16 +151,13 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
                   {aiState === 'idle' && 'Kamera auf Gegenstand richten'}
                   {aiState === 'scan' && 'Analysiere…'}
                   {aiState === 'found' && `Erkannt: ${found?.name}`}
-                  {aiState === 'none' && 'Nicht erkannt'}
+                  {aiState === 'none'  && 'Nicht erkannt'}
                 </p>
               </div>
             </div>
 
-            <p className="text-center text-surface-500 text-xs px-6 mt-3 leading-relaxed">
-              Halte die Kamera auf einen Gegenstand — die App zeigt den Lagerplatz.
-            </p>
+            <p className="text-center text-surface-500 text-xs px-6 mt-3">Halte die Kamera auf einen Gegenstand.</p>
 
-            {/* Demo buttons */}
             {lieArtikel.length > 0 && (
               <div className="px-4 mt-3">
                 <p className="text-xs text-surface-600 text-center mb-2">Demo: Gegenstand tippen</p>
@@ -182,15 +173,11 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
               </div>
             )}
 
-            {/* Result */}
             {aiState === 'found' && found && (
               <div className="mx-4 mt-4 rounded-3xl overflow-hidden animate-fade-in border border-green-800/40" style={{ background: 'rgba(5,46,22,0.6)' }}>
                 <div className="p-4 flex items-center gap-3 border-b border-green-900/50">
                   <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-bold">✓</div>
-                  <div>
-                    <p className="text-green-300 font-bold text-sm">Artikel erkannt</p>
-                    <p className="text-green-600 text-xs">Hohe Übereinstimmung</p>
-                  </div>
+                  <p className="text-green-300 font-bold text-sm">Artikel erkannt</p>
                 </div>
                 <div className="p-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -200,8 +187,9 @@ export function HomeTab({ onNav, onAdd, onDetail }: {
                   <div className="bg-surface-900/80 rounded-2xl p-3 mb-3">
                     <p className="text-[10px] text-surface-500 uppercase font-semibold tracking-widest mb-2">Zugewiesener Lagerplatz</p>
                     <div className="flex items-center gap-3">
-                      <span className="text-brand-300 font-bold text-base px-3 py-1.5 rounded-xl border border-brand-800/70" style={{ background: 'rgba(12,74,110,0.4)' }}>{found.lagerplatz_code}</span>
-                      <div><p className="text-white font-semibold text-sm">{found.lagerplatz_bezeichnung}</p></div>
+                      <span className="text-brand-300 font-bold text-base px-3 py-1.5 rounded-xl border border-brand-800/70"
+                        style={{ background: 'rgba(12,74,110,0.4)' }}>{found.lagerplatz_code}</span>
+                      <p className="text-white font-semibold text-sm">{found.lagerplatz_bezeichnung}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">

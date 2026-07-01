@@ -1,34 +1,27 @@
-// iOS Safari Speech Recognition types
-// webkit-prefixed version used on iPhone/iPad
-
+// iOS Safari webkit speech recognition types
 interface SpeechRecognitionErrorEvent extends Event {
   readonly error: string
   readonly message: string
 }
-
 interface SpeechRecognitionEvent extends Event {
   readonly resultIndex: number
   readonly results: SpeechRecognitionResultList
 }
-
 interface SpeechRecognitionResultList {
   readonly length: number
   item(index: number): SpeechRecognitionResult
   [index: number]: SpeechRecognitionResult
 }
-
 interface SpeechRecognitionResult {
   readonly isFinal: boolean
   readonly length: number
   item(index: number): SpeechRecognitionAlternative
   [index: number]: SpeechRecognitionAlternative
 }
-
 interface SpeechRecognitionAlternative {
   readonly transcript: string
   readonly confidence: number
 }
-
 declare class SpeechRecognition extends EventTarget {
   lang: string
   continuous: boolean
@@ -42,7 +35,6 @@ declare class SpeechRecognition extends EventTarget {
   stop(): void
   abort(): void
 }
-
 interface Window {
   SpeechRecognition: typeof SpeechRecognition
   webkitSpeechRecognition: typeof SpeechRecognition

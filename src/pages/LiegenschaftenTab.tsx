@@ -1,21 +1,18 @@
 import React, { useState } from 'react'
-import { Plus, CheckCircle2, ChevronRight } from 'lucide-react'
+import { Plus, CheckCircle2, ChevronRight, LogOut } from 'lucide-react'
 import { useApp } from '../lib/AppContext'
-import {
-  Sheet, Btn, Input, SL, Card, CardRow, Avatar, RoleBadge,
-  EmojiGrid, ColorGrid, toast, Spinner, LIE_COLORS, LIE_EMOJIS,
-} from '../components/UI'
+import { Sheet, Btn, Input, SL, Card, CardRow, Avatar, RoleBadge, EmojiGrid, ColorGrid, toast, Spinner, LIE_COLORS, LIE_EMOJIS } from '../components/UI'
 
 export function LiegenschaftenTab() {
   const { liegenschaften, activeLieId, switchLie, activeUser, benutzer,
-          activeUserId, switchUser, getLieRole, loading, createLiegenschaft } = useApp()
+          activeUserId, switchUser, getLieRole, loading, createLiegenschaft, logout } = useApp()
 
-  const [showAdd, setShowAdd] = useState(false)
-  const [name, setName] = useState('')
-  const [adresse, setAdresse] = useState('')
-  const [emoji, setEmoji] = useState('🏢')
-  const [colorOpt, setColorOpt] = useState(LIE_COLORS[0])
-  const [saving, setSaving] = useState(false)
+  const [showAdd, setShowAdd]     = useState(false)
+  const [name, setName]           = useState('')
+  const [adresse, setAdresse]     = useState('')
+  const [emoji, setEmoji]         = useState('🏢')
+  const [colorOpt, setColorOpt]   = useState(LIE_COLORS[0])
+  const [saving, setSaving]       = useState(false)
 
   const handleCreate = async () => {
     if (!name.trim()) { toast('Bitte einen Namen eingeben', 'err'); return }
@@ -31,14 +28,26 @@ export function LiegenschaftenTab() {
   if (loading) return <Spinner />
 
   return (
-    <div className="flex flex-col min-h-full" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <div className="flex flex-col min-h-full page-header">
       {/* Header */}
       <div className="bg-surface-900/95 backdrop-blur border-b border-surface-800 px-5 pt-4 pb-4 flex-shrink-0">
-        <h1 className="text-[26px] font-bold text-white leading-tight">Liegenschaften</h1>
-        {activeUser && <p className="text-surface-500 text-[13px] mt-0.5">{activeUser.name} · {activeUser.rolle === 'admin' ? 'Administrator' : activeUser.rolle === 'user' ? 'Benutzer' : 'Gast'}</p>}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-[26px] font-bold text-white leading-tight">Liegenschaften</h1>
+            {activeUser && (
+              <p className="text-surface-500 text-[13px] mt-0.5">
+                {activeUser.name} · {activeUser.rolle === 'admin' ? 'Administrator' : activeUser.rolle === 'user' ? 'Benutzer' : 'Gast'}
+              </p>
+            )}
+          </div>
+          <button type="button" onClick={logout}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-surface-800 border border-surface-700 text-surface-400 text-xs font-medium mt-1">
+            <LogOut size={14} /> Abmelden
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 scroll-area pb-28">
+      <div className="flex-1 scroll-area pb-tabbar">
         <SL>Meine Liegenschaften</SL>
 
         {liegenschaften.length === 0 ? (
@@ -54,22 +63,20 @@ export function LiegenschaftenTab() {
               const isActive = l.id === activeLieId
               const role = activeUser ? getLieRole(activeUser.id, l.id) : 'guest'
               return (
-                <button key={l.id} type="button" onClick={() => { switchLie(l.id) }}
+                <button key={l.id} type="button" onClick={() => switchLie(l.id)}
                   className="w-full flex items-center gap-3.5 p-4 rounded-3xl border transition-all text-left active:scale-[0.98]"
-                  style={{ background: isActive ? colorOpt.bg : 'rgba(30,41,59,1)', borderColor: isActive ? l.farbe : 'rgba(51,65,85,1)' }}>
+                  style={{ background: isActive ? `${l.farbe}18` : 'rgba(30,41,59,1)', borderColor: isActive ? l.farbe : 'rgba(51,65,85,1)' }}>
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-[28px] flex-shrink-0"
-                    style={{ backgroundColor: `${l.farbe}22` }}>
-                    {l.emoji}
-                  </div>
+                    style={{ backgroundColor: `${l.farbe}22` }}>{l.emoji}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
                       <span className="font-bold text-white text-[15px] truncate">{l.name}</span>
                       {isActive && <CheckCircle2 size={15} style={{ color: l.farbe }} className="flex-shrink-0" />}
                     </div>
                     {l.adresse && <p className="text-surface-500 text-xs mt-0.5 truncate">{l.adresse}</p>}
-                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <div className="flex items-center gap-2 mt-1.5">
                       <RoleBadge role={role} />
-                      {isActive && <span className="text-[11px] font-semibold text-green-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />Aktiv</span>}
+                      {isActive && <span className="text-[11px] font-semibold text-green-400">● Aktiv</span>}
                     </div>
                   </div>
                   <ChevronRight size={17} className="text-surface-600 flex-shrink-0" />
@@ -79,19 +86,22 @@ export function LiegenschaftenTab() {
           </div>
         )}
 
-        {/* Add button */}
-        {(!activeUser || activeUser.rolle === 'admin') && (
+        {/* Add Liegenschaft */}
+        {activeUser?.rolle === 'admin' && (
           <div className="px-4 pt-3">
             <button type="button" onClick={() => setShowAdd(true)}
               className="w-full flex items-center gap-3 p-4 rounded-3xl border-2 border-dashed border-surface-700 text-surface-500 hover:border-brand-700 hover:text-brand-400 transition-colors">
               <div className="w-11 h-11 rounded-2xl bg-surface-800 flex items-center justify-center flex-shrink-0"><Plus size={22} /></div>
-              <div className="text-left"><p className="font-semibold text-sm">Liegenschaft hinzufügen</p><p className="text-xs text-surface-600 mt-0.5">Neues Inventar anlegen</p></div>
+              <div className="text-left">
+                <p className="font-semibold text-sm">Liegenschaft hinzufügen</p>
+                <p className="text-xs text-surface-600 mt-0.5">Neues Inventar anlegen</p>
+              </div>
             </button>
           </div>
         )}
 
         {/* Benutzer wechseln */}
-        {benutzer.length > 0 && (
+        {benutzer.length > 1 && (
           <>
             <SL>Benutzer wechseln</SL>
             <Card>
