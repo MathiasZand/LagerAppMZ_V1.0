@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { Plus, CheckCircle2, ChevronRight, LogOut } from 'lucide-react'
 import { useApp } from '../lib/AppContext'
+import { supabase } from '../lib/supabase'
 import { Sheet, Btn, Input, SL, Card, CardRow, Avatar, RoleBadge, EmojiGrid, ColorGrid, toast, Spinner, LIE_COLORS, LIE_EMOJIS } from '../components/UI'
 
 export function LiegenschaftenTab() {
   const { liegenschaften, activeLieId, switchLie, activeUser, benutzer,
-          activeUserId, switchUser, getLieRole, loading, createLiegenschaft, logout } = useApp()
+          activeUserId, switchUser, getLieRole, loading, createLiegenschaft, logout, reload } = useApp()
 
   const [showAdd, setShowAdd]     = useState(false)
   const [name, setName]           = useState('')
@@ -17,14 +18,36 @@ export function LiegenschaftenTab() {
   const handleCreate = async () => {
     if (!name.trim()) { toast('Bitte einen Namen eingeben', 'err'); return }
     setSaving(true)
-    const res = await createLiegenschaft({ name: name.trim(), adresse: adresse.trim(), emoji, farbe: colorOpt.color })
+
+    // Direct Supabase insert — bypasses any state timing issues
+    const { data, error } = await supabase
+      .from('liegenschaften')
+      .insert({ name: name.trim(), adresse: adresse.trim(), emoji, farbe: colorOpt.color })
+      .select()
+      .single()
+
     setSaving(false)
-    if (res) {
-      toast(`Liegenschaft "${res.name}" aktiv ✓`)
-      setShowAdd(false); setName(''); setAdresse(''); setEmoji('🏢'); setColorOpt(LIE_COLORS[0])
-    } else {
-      toast('Fehler — Supabase-Verbindung prüfen', 'err')
+
+    if (error || !data) {
+      const msg = error?.message ?? 'Unbekannter Fehler'
+      toast('Fehler: ' + msg, 'err')
+      console.error('createLiegenschaft direct error:', error)
+      return
     }
+
+    // Link user to liegenschaft
+    if (activeUserId) {
+      await supabase.from('benutzer_liegenschaft')
+        .insert({ benutzer_id: activeUserId, liegenschaft_id: data.id, rolle: 'admin' })
+        .then(({ error: e }) => { if (e) console.warn('bl link:', e.message) })
+    }
+
+    // Refresh all data
+    await reload()
+    switchLie(data.id)
+
+    toast(`Liegenschaft "${data.name}" erstellt ✓`)
+    setShowAdd(false); setName(''); setAdresse(''); setEmoji('🏢'); setColorOpt(LIE_COLORS[0])
   }
 
   if (loading) return <Spinner />

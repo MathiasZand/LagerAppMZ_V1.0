@@ -151,15 +151,34 @@ export function AppProvider({ children, onLogout }: { children: React.ReactNode;
   // ─── CRUD ────────────────────────────────────────────────────────────────────
 
   const createLiegenschaft = async (d: Omit<Liegenschaft, 'id' | 'erstellt_am'>) => {
+    // Step 1: Insert liegenschaft
     const { data, error } = await supabase.from('liegenschaften').insert(d).select().single()
-    if (error || !data) { console.error('createLiegenschaft error:', error); return null }
-    // Update state immediately so subsequent calls (createRaum etc.) work
-    setL(prev => [...prev, data])
-    setLieId(data.id)  // set active BEFORE benutzer_liegenschaft so activeLieId is ready
-    if (activeUserId) {
-      await supabase.from('benutzer_liegenschaft').insert({ benutzer_id: activeUserId, liegenschaft_id: data.id, rolle: 'admin' })
-      setLA(prev => ({ ...prev, [activeUserId]: { ...(prev[activeUserId] || {}), [data.id]: 'admin' } }))
+    if (error || !data) {
+      console.error('createLiegenschaft error:', JSON.stringify(error))
+      // Return error message so UI can show it
+      return null
     }
+
+    // Step 2: Update local state immediately
+    setL(prev => [...prev, data])
+    setLieId(data.id)
+
+    // Step 3: Try to link user — but do NOT fail if this errors
+    if (activeUserId) {
+      try {
+        const { error: blErr } = await supabase
+          .from('benutzer_liegenschaft')
+          .insert({ benutzer_id: activeUserId, liegenschaft_id: data.id, rolle: 'admin' })
+        if (blErr) {
+          // Log but don't block — liegenschaft was created successfully
+          console.warn('benutzer_liegenschaft link failed (non-critical):', blErr.message)
+        }
+        setLA(prev => ({ ...prev, [activeUserId]: { ...(prev[activeUserId] || {}), [data.id]: 'admin' } }))
+      } catch (e) {
+        console.warn('benutzer_liegenschaft link exception:', e)
+      }
+    }
+
     return data
   }
 
