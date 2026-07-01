@@ -1,12 +1,16 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { Plus, ChevronRight, ZoomIn, Pencil, Trash2, Mic } from 'lucide-react'
 import { useApp } from '../lib/AppContext'
+import { HINTS } from '../types'
 import type { Artikel } from '../types'
 import {
   Page, Sheet, Btn, Input, Textarea, SearchBar,
   SL, Card, CardRow, HintIcons, HintBadges, HintChips,
   Confirm, Spinner, Empty, toast,
 } from '../components/UI'
+
+// Hinweis-Filter Chips
+const HINT_FILTERS = HINTS.map(h => ({ id: h.id, label: h.label, icon: h.icon, bg: h.bg, text: h.text, border: h.border }))
 
 // ── AddArtikelSheet ──────────────────────────────────────────────────────────
 function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void; edit?: Artikel | null }) {
@@ -144,24 +148,20 @@ function AddSheet({ open, onClose, edit }: { open: boolean; onClose: () => void;
               {photoTaken && photoUrl
                 ? <img src={photoUrl} alt="Aufnahme" className="w-full h-full object-cover" />
                 : photoTaken
-                ? <><span className="text-6xl">{emoji}</span><p className="text-green-400 text-sm font-semibold">Foto aufgenommen ✓</p></>
+                ? <><span className="text-6xl">📷</span><p className="text-green-400 text-sm font-semibold">Foto aufgenommen ✓</p></>
                 : <><span className="text-5xl opacity-20">📷</span><p className="text-surface-500 text-sm">Tippen zum Fotografieren</p><p className="text-surface-600 text-xs mt-1">Öffnet die iPhone-Kamera</p></>
               }
               {photoTaken && (
                 <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">Nochmals tippen</div>
               )}
             </button>
-            <div className="mt-2">
-              <p className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest mb-2">Symbol</p>
-              <div className="flex flex-wrap gap-2">
-                {EMOJIS.map(e => (
-                  <button key={e} type="button" onClick={() => setEmoji(e)}
-                    className={`w-11 h-11 rounded-2xl text-xl flex items-center justify-center border transition-all ${emoji===e ? 'border-brand-500 bg-brand-900/40' : 'border-surface-700 bg-surface-900'}`}>
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Überspringen */}
+            {!photoTaken && (
+              <button type="button" onClick={() => { setPhotoTaken(true); setPhotoUrl(null) }}
+                className="w-full py-3 rounded-2xl border border-surface-700 text-surface-400 text-sm font-medium">
+                Ohne Foto überspringen →
+              </button>
+            )}
           </>
         )}
 
@@ -371,6 +371,7 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
   const { lieArtikel, lieKategorien, can, loading } = useApp()
   const [q, setQ]               = useState('')
   const [cat, setCat]           = useState('Alle')
+  const [hintFilter, setHintFilter] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<string | null>(initialDetailId ?? null)
   const [editItem, setEditItem] = useState<Artikel | null>(null)
   const [showLocalAdd, setShowLocalAdd] = useState(false)
@@ -381,9 +382,10 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
     const sq = q.toLowerCase()
     return lieArtikel.filter(a =>
       (cat === 'Alle' || a.kategorie === cat) &&
+      (!hintFilter || (a.hinweise && a.hinweise.includes(hintFilter))) &&
       (!sq || a.name.toLowerCase().includes(sq) || a.kategorie?.toLowerCase().includes(sq) || a.lagerplatz_code.toLowerCase().includes(sq))
     )
-  }, [lieArtikel, q, cat])
+  }, [lieArtikel, q, cat, hintFilter])
 
   const grouped = useMemo(() => {
     const g: Record<string, typeof filtered> = {}
@@ -407,11 +409,22 @@ export function InventarTab({ addOpen, onAddClose, initialDetailId, onDetailClos
           )}
         </div>
         <SearchBar value={q} onChange={setQ} placeholder="Name, Kategorie oder Code…" />
-        <div className="flex gap-2 px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        {/* Kategorie-Filter */}
+        <div className="flex gap-2 px-4 pb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {['Alle', ...lieKategorien.map(k => k.name)].map(c => (
             <button key={c} type="button" onClick={() => setCat(c)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors ${cat===c ? 'bg-brand-600 text-white border-brand-600' : 'bg-surface-800 text-surface-400 border-surface-700'}`}>
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors flex-shrink-0 ${cat===c ? 'bg-brand-600 text-white border-brand-600' : 'bg-surface-800 text-surface-400 border-surface-700'}`}>
               {c}
+            </button>
+          ))}
+        </div>
+        {/* Hinweis-Filter */}
+        <div className="flex gap-2 px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          {HINT_FILTERS.map(h => (
+            <button key={h.id} type="button" onClick={() => setHintFilter(prev => prev === h.id ? null : h.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex-shrink-0 ${hintFilter===h.id ? '' : 'bg-surface-800 text-surface-400 border-surface-700'}`}
+              style={hintFilter===h.id ? { background: h.bg, color: h.text, borderColor: h.border } : {}}>
+              {h.icon} {h.label}
             </button>
           ))}
         </div>

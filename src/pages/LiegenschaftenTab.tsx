@@ -20,9 +20,11 @@ export function LiegenschaftenTab() {
     const res = await createLiegenschaft({ name: name.trim(), adresse: adresse.trim(), emoji, farbe: colorOpt.color })
     setSaving(false)
     if (res) {
-      toast(`Liegenschaft "${res.name}" erstellt`)
+      toast(`Liegenschaft "${res.name}" aktiv ✓`)
       setShowAdd(false); setName(''); setAdresse(''); setEmoji('🏢'); setColorOpt(LIE_COLORS[0])
-    } else toast('Fehler beim Erstellen', 'err')
+    } else {
+      toast('Fehler — Supabase-Verbindung prüfen', 'err')
+    }
   }
 
   if (loading) return <Spinner />
@@ -75,9 +77,12 @@ export function LiegenschaftenTab() {
                     </div>
                     {l.adresse && <p className="text-surface-500 text-xs mt-0.5 truncate">{l.adresse}</p>}
                     <div className="flex items-center gap-2 mt-1.5">
-                      <RoleBadge role={role} />
-                      {isActive && <span className="text-[11px] font-semibold text-green-400">● Aktiv</span>}
-                    </div>
+                    <RoleBadge role={role} />
+                    {isActive
+                      ? <span className="text-[11px] font-semibold text-green-400">● Aktiv</span>
+                      : <span className="text-[11px] text-surface-600">Tippen zum Aktivieren</span>
+                    }
+                  </div>
                   </div>
                   <ChevronRight size={17} className="text-surface-600 flex-shrink-0" />
                 </button>

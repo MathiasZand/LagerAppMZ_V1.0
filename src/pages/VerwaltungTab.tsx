@@ -29,14 +29,20 @@ function LagerorteSeite({ open, onBack }: { open: boolean; onBack: () => void })
 
   const handleAddRoom = async () => {
     if (!rName.trim()) { toast('Bitte einen Namen eingeben', 'err'); return }
-    if (!activeLieId)  { toast('Keine Liegenschaft aktiv', 'err'); return }
+    const lieId = activeLieId
+    if (!lieId) {
+      toast('Bitte zuerst eine Liegenschaft anlegen und auswählen', 'err')
+      return
+    }
     setSaving(true)
-    const res = await createRaum({ liegenschaft_id: activeLieId, name: rName.trim(), emoji: rEmoji, stockwerk: rFloor })
+    const res = await createRaum({ liegenschaft_id: lieId, name: rName.trim(), emoji: rEmoji, stockwerk: rFloor })
     setSaving(false)
     if (res) {
       toast(`Raum "${res.name}" hinzugefügt`)
       setShowAddRoom(false); setRName(''); setREmoji('🔧'); setRFloor('EG')
-    } else toast('Fehler beim Anlegen — Supabase-Verbindung prüfen', 'err')
+    } else {
+      toast('Fehler beim Anlegen. Prüfe die Supabase-Verbindung.', 'err')
+    }
   }
 
   const handleAddSpot = async () => {
@@ -60,6 +66,19 @@ function LagerorteSeite({ open, onBack }: { open: boolean; onBack: () => void })
   }
 
   if (!open) return null
+
+  // Wenn keine Liegenschaft aktiv — Hinweis anzeigen
+  if (!activeLieId) {
+    return (
+      <Page open title="Lagerorte" onBack={onBack}>
+        <div className="mx-4 mt-6 p-5 rounded-3xl border border-amber-800/40 text-center" style={{ background: 'rgba(120,53,15,0.2)' }}>
+          <p className="text-3xl mb-3">🏢</p>
+          <p className="text-amber-300 font-semibold mb-1">Keine Liegenschaft aktiv</p>
+          <p className="text-amber-600 text-sm leading-relaxed">Bitte zuerst im Tab "Liegenschaft" eine Liegenschaft anlegen und auswählen.</p>
+        </div>
+      </Page>
+    )
+  }
 
   // Raum-Detail-Ansicht
   if (selRaumId && selectedRaum) {
@@ -181,14 +200,20 @@ function KategorienSeite({ open, onBack }: { open: boolean; onBack: () => void }
 
   const handleAdd = async () => {
     if (!name.trim()) { toast('Bitte einen Namen eingeben', 'err'); return }
-    if (!activeLieId) { toast('Keine Liegenschaft aktiv', 'err'); return }
+    const lieId = activeLieId
+    if (!lieId) {
+      toast('Bitte zuerst eine Liegenschaft anlegen und auswählen', 'err')
+      return
+    }
     setSaving(true)
-    const res = await createKategorie({ liegenschaft_id: activeLieId, name: name.trim(), farbe: colorOpt.color, hintergrund: colorOpt.bg })
+    const res = await createKategorie({ liegenschaft_id: lieId, name: name.trim(), farbe: colorOpt.color, hintergrund: colorOpt.bg })
     setSaving(false)
     if (res) {
       toast(`Kategorie "${res.name}" hinzugefügt`)
       setShowAdd(false); setName(''); setColorOpt(CAT_COLORS[0])
-    } else toast('Fehler beim Anlegen — Supabase-Verbindung prüfen', 'err')
+    } else {
+      toast('Fehler beim Anlegen. Prüfe die Supabase-Verbindung.', 'err')
+    }
   }
 
   const handleDel = async (id: string) => {
@@ -199,6 +224,19 @@ function KategorienSeite({ open, onBack }: { open: boolean; onBack: () => void }
   }
 
   if (!open) return null
+
+  if (!activeLieId) {
+    return (
+      <Page open title="Kategorien" onBack={onBack}>
+        <div className="mx-4 mt-6 p-5 rounded-3xl border border-amber-800/40 text-center" style={{ background: 'rgba(120,53,15,0.2)' }}>
+          <p className="text-3xl mb-3">🏢</p>
+          <p className="text-amber-300 font-semibold mb-1">Keine Liegenschaft aktiv</p>
+          <p className="text-amber-600 text-sm leading-relaxed">Bitte zuerst im Tab "Liegenschaft" eine Liegenschaft anlegen und auswählen.</p>
+        </div>
+      </Page>
+    )
+  }
+
   return (
     <Page open title="Kategorien" onBack={onBack}>
       <SL>Kategorien</SL>

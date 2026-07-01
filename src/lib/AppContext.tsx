@@ -133,7 +133,12 @@ export function AppProvider({ children, onLogout }: { children: React.ReactNode;
 
   const can = (p: PermKey): boolean => {
     if (!activeUser) return false
-    const role = activeLieId ? getLieRole(activeUser.id, activeLieId) : activeUser.rolle
+    // If no liegenschaft active yet, use global role (important for first-time setup)
+    const role = activeLieId
+      ? getLieRole(activeUser.id, activeLieId)
+      : activeUser.rolle
+    // Admin always has full access
+    if (activeUser.rolle === 'admin') return true
     return perms[role]?.[p] ?? false
   }
 
@@ -147,13 +152,14 @@ export function AppProvider({ children, onLogout }: { children: React.ReactNode;
 
   const createLiegenschaft = async (d: Omit<Liegenschaft, 'id' | 'erstellt_am'>) => {
     const { data, error } = await supabase.from('liegenschaften').insert(d).select().single()
-    if (error || !data) { console.error(error); return null }
+    if (error || !data) { console.error('createLiegenschaft error:', error); return null }
+    // Update state immediately so subsequent calls (createRaum etc.) work
     setL(prev => [...prev, data])
+    setLieId(data.id)  // set active BEFORE benutzer_liegenschaft so activeLieId is ready
     if (activeUserId) {
       await supabase.from('benutzer_liegenschaft').insert({ benutzer_id: activeUserId, liegenschaft_id: data.id, rolle: 'admin' })
       setLA(prev => ({ ...prev, [activeUserId]: { ...(prev[activeUserId] || {}), [data.id]: 'admin' } }))
     }
-    setLieId(data.id)
     return data
   }
 
